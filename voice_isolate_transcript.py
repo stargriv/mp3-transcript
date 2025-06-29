@@ -49,7 +49,12 @@ class VoiceIsolator:
         print(f"🎯 Demucs model configured: {model_name}")
         
         # Store model configuration for demucs.separate usage
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            self.device = torch.device("mps")
+        else:
+            self.device = torch.device("cpu")
         print(f"✅ Demucs model configured: {model_name} on {self.device}")
     
     def isolate_vocals(self, audio_path: str, output_path: str = None) -> str:
@@ -87,6 +92,7 @@ class VoiceIsolator:
                 "--two-stems", "vocals",  # Only separate vocals
                 "-n", self.model_name,  # Use specified model
                 "-o", str(temp_output_dir),  # Output directory
+                "-d", str(self.device),  # Specify device
                 audio_path
             ]
             
@@ -165,7 +171,17 @@ class TranscriptGenerator:
             model_size: Whisper model size (tiny, base, small, medium, large)
         """
         print(f"Loading Whisper model: {model_size}")
-        self.model = whisper.load_model(model_size)
+        
+        # Detect best available device
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
+            
+        print(f"Whisper using device: {self.device}")
+        self.model = whisper.load_model(model_size, device=self.device)
     
     def transcribe_with_timestamps(self, audio_path: str) -> Dict:
         """
